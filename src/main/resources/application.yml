@@ -45,7 +45,6 @@ spring:
       port: 6379
       database: 0
       timeout: 5s
-      password:
 
   # MyBatis-Plus 配置
   mybatis-plus:
