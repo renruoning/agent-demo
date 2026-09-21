@@ -10,11 +10,15 @@ import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -171,9 +175,24 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
     }
     /**
      * 获取Python脚本路径
+     *
+     * 脚本以 classpath 资源形式打包（src/main/resources/python/render_ppt.py），
+     * 运行时释放到临时文件后再交给外部 python 进程执行，避免依赖开发机上的绝对路径。
      */
     private String getPythonScriptPath() {
-        return "D:\\LLMentor\\LLMentor\\agent\\dodo-agent\\src\\main\\resources\\python\\render_ppt.py";
+        try {
+            Path scriptPath = Files.createTempFile("render_ppt_", ".py");
+            try (InputStream in = getClass().getClassLoader().getResourceAsStream("python/render_ppt.py")) {
+                if (in == null) {
+                    throw new IllegalStateException("找不到classpath资源: python/render_ppt.py");
+                }
+                Files.copy(in, scriptPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            scriptPath.toFile().deleteOnExit();
+            return scriptPath.toAbsolutePath().toString();
+        } catch (IOException e) {
+            throw new UncheckedIOException("释放 render_ppt.py 脚本失败", e);
+        }
     }
 
     /**

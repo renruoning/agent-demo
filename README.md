@@ -1,5 +1,69 @@
 # Dodo-Agent：企业级端到端通用智能体平台
 
+## 快速开始（本地启动）
+
+### 环境要求
+
+| 依赖 | 版本/说明 |
+|-----|---------|
+| JDK | 21 |
+| Maven | 3.8+ |
+| Python | 3.x，需 `python` 命令在 PATH 中，并安装依赖：`pip install python-pptx requests` |
+| Playwright Chromium | 首次运行前执行一次：`mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"`（HTML 转图 / 转 PPT 功能依赖） |
+
+> 说明：本仓库是从 LLMentor 多模块工程中拆分出的独立模块，`pom.xml` 已改为直接继承 `spring-boot-starter-parent` 并自行导入 `spring-ai-bom` / `spring-ai-alibaba-bom`，可以脱离原多模块工程单独编译运行。
+
+### 依赖的中间件
+
+以下服务地址/账号默认读取自 `src/main/resources/application.yml`，本地需自行启动（推荐用 Docker）：
+
+| 服务 | 默认地址 | 用途 | 启动后需要做的事 |
+|-----|---------|------|----------------|
+| MySQL 8 | `127.0.0.1:3306`，db=`dodo`，`root/root` | 会话历史、PPT 实例等元数据 | 导入 `sql/ai_db.sql` 建表 |
+| Redis | `127.0.0.1:6379` | 缓存/会话 | 无需额外操作 |
+| PostgreSQL + pgvector | `127.0.0.1:5433`，db=`vector_store`，`postgres/postgres` | 向量检索（RAG） | 建库后执行 `CREATE EXTENSION vector;` |
+| MinIO | `127.0.0.1:9000`，`minioadmin/minioadmin` | 文件 / PPT 存储 | 创建名为 `rag-test2` 的 bucket |
+
+以上端口、账号如与你本地实际部署不一致，直接改 `application.yml`（或用下面的 `application-local.yml` 覆盖）即可。
+
+### 密钥配置
+
+`application.yml` 中以下几处需要真实密钥才能跑通对应功能：
+
+- `spring.ai.openai.api-key` / `spring.ai.openai.embedding.api-key`：大模型（通义千问 DashScope）调用，读取环境变量 `DASHSCOPE_API_KEY`
+- `tavily.api-key`：WebSearchReactAgent 联网搜索依赖，去 [Tavily](https://tavily.com/) 申请
+- `grsai.nanobanana.api-key`：PPT 智能配图（AI 生图）依赖
+
+**不要把真实 key 直接写进 `application.yml` 提交到仓库。** 推荐做法：在 `src/main/resources/` 下新建 `application-local.yml`（已加入 `.gitignore`，不会被提交），写入真实值，例如：
+
+```yaml
+spring:
+  ai:
+    openai:
+      api-key: <你的 DashScope key>
+      embedding:
+        api-key: <你的 DashScope key>
+
+tavily:
+  api-key: <你的 Tavily key>
+
+grsai:
+  nanobanana:
+    api-key: <你的 grsai key>
+```
+
+`application.yml` 中已经配置了 `spring.profiles.active: local`，启动时会自动加载并合并 `application-local.yml`（如果文件存在），无需再手动指定 profile。
+
+### 启动
+
+```bash
+mvn spring-boot:run
+```
+
+默认端口 `8888`。
+
+---
+
 ## 一、产品定位
 
 **Dodo-Agent** 是一个面向企业级应用的端到端通用智能体（End-to-End Universal Agent）平台，采用多智能体架构，基于 Spring AI 生态构建，深度融合大语言模型（LLM）能力与现代软件工程架构，提供从感知、推理到执行的全链路智能化解决方案。
